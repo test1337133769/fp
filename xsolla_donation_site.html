@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Support — Donate</title>
+  <meta name="description" content="Quick donation page with Xsolla checkout (no login required)." />
+
+  <!-- Xsolla Paystation SDK (frontend widget) -->
+  <script src="https://cdn.xsolla.net/sdk/js/latest/xsolla-paystation.js"></script>
+
+  <style>
+    :root{
+      --accent:#ffcc00;
+      --bg1:#0f172a;
+      --bg2:#0b2545;
+      --glass: rgba(255,255,255,0.06);
+      --muted: rgba(255,255,255,0.85);
+      --card-w: 420px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    body{
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background: linear-gradient(135deg,var(--bg1),var(--bg2));
+      display:flex;align-items:center;justify-content:center;padding:24px;color:#fff;
+    }
+
+    .site{
+      width:100%;max-width:1100px;display:grid;grid-template-columns:420px 1fr;gap:28px;align-items:start;
+    }
+
+    /* HEADER inside left card */
+    .card{
+      width:var(--card-w);background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border-radius:18px;padding:22px;backdrop-filter: blur(8px);box-shadow:0 10px 40px rgba(2,6,23,0.6);
+    }
+
+    header.brand{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+    .logo{
+      width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#ff8a00);display:flex;align-items:center;justify-content:center;font-weight:800;color:#111;font-size:20px;box-shadow:0 6px 18px rgba(0,0,0,0.3)
+    }
+    .brand h1{font-size:18px;margin:0}
+    .brand p{font-size:12px;margin:0;opacity:0.9}
+
+    .desc{font-size:14px;color:var(--muted);margin:12px 0 18px}
+
+    .presets{display:flex;gap:10px;margin-bottom:12px}
+    .preset{flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);text-align:center;cursor:pointer;user-select:none}
+    .preset.selected{outline:2px solid rgba(255,255,255,0.08);transform:translateY(-3px)}
+
+    .amount-row{display:flex;gap:12px;margin-bottom:18px}
+    .amount-row input{flex:1;padding:12px;border-radius:12px;border:none;font-size:18px}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+    .toggle{display:flex;gap:6px;align-items:center}
+    .toggle input{width:18px;height:18px}
+
+    button.primary{width:100%;padding:14px;border-radius:12px;border:none;background:var(--accent);color:#111;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,0.35)}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px;border-radius:10px;color:var(--muted);cursor:pointer}
+
+    .meta{font-size:12px;color:rgba(255,255,255,0.8);margin-top:12px}
+
+    /* right column for details */
+    .info{
+      padding:22px;border-radius:18px;background:rgba(255,255,255,0.03);min-height:260px
+    }
+    .info h3{margin-top:0}
+    .info ul{padding-left:18px}
+
+    /* Loading overlay */
+    .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:999;visibility:hidden;opacity:0;transition:opacity .18s}
+    .overlay.show{visibility:visible;opacity:1}
+    .loader{width:140px;height:140px;background:linear-gradient(135deg,#0b1220,#16213a);border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 18px 60px rgba(2,6,23,0.5)}
+    .loader .spinner{width:56px;height:56px;border-radius:50%;border:6px solid rgba(255,255,255,0.08);border-top-color:var(--accent);animation:spin 1s linear infinite;margin-bottom:12px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Success modal */
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#062036;padding:22px;border-radius:14px;width:420px;max-width:92vw;box-shadow:0 18px 80px rgba(2,6,23,0.6);display:none;z-index:1000}
+    .modal.show{display:block}
+    .modal h2{margin:0 0 8px}
+    .modal p{opacity:0.9}
+
+    /* responsive */
+    @media (max-width:880px){
+      .site{grid-template-columns:1fr;align-items:stretch}
+      .card{width:100%}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="site">
+    <!-- Left: Donation card -->
+    <div class="card" role="region" aria-label="Donation form">
+      <header class="brand">
+        <div class="logo">SD</div>
+        <div>
+          <h1>Support Donation</h1>
+          <p>Secure payments handled by Xsolla — no account required</p>
+        </div>
+      </header>
+
+      <div class="desc">Choose an amount or enter a custom donation. Toggle monthly to make this a recurring donation (subscription).</div>
+
+      <div class="presets" role="list">
+        <div class="preset" data-amount="5">$5</div>
+        <div class="preset" data-amount="10">$10</div>
+        <div class="preset" data-amount="20">$20</div>
+      </div>
+
+      <div class="amount-row">
+        <input inputmode="decimal" id="amount" type="number" min="1" placeholder="Custom amount (USD)" aria-label="Donation amount" />
+      </div>
+
+      <div class="controls">
+        <label class="toggle"><input type="checkbox" id="subscription" aria-label="Monthly donation" /> <span>Monthly</span></label>
+        <button class="ghost" id="suggest">Suggest Gift</button>
+      </div>
+
+      <button class="primary" id="donateBtn">Donate Now</button>
+      <div class="meta">You will be redirected to Xsolla to complete the payment. We never store card details on our site.</div>
+    </div>
+
+    <!-- Right: Info / Impact -->
+    <aside class="info" role="complementary">
+      <h3>Why donate?</h3>
+      <p>Your donations help fund our community programs, pay for hosting, and support the team. Even $5/month makes a difference.</p>
+
+      <h3>How it works</h3>
+      <ul>
+        <li>Enter amount & choose monthly if you want recurring support.</li>
+        <li>Click Donate and you'll be taken to Xsolla's secure checkout.</li>
+        <li>After payment completes, you'll see a confirmation on our site.</li>
+      </ul>
+
+      <h3>Privacy</h3>
+      <p>We do not require login. Donations are anonymous unless you provide contact info in Xsolla checkout.</p>
+    </aside>
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="overlay" id="overlay" aria-hidden="true">
+    <div class="loader" role="status" aria-live="polite">
+      <div class="spinner"></div>
+      <div style="font-weight:600">Redirecting to secure checkout…</div>
+      <div style="font-size:12px;margin-top:6px;opacity:0.8">Do not close this page.</div>
+    </div>
+  </div>
+
+  <!-- Success modal -->
+  <div class="modal" id="successModal" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+    <h2 id="successTitle">Thank you!</h2>
+    <p id="successMsg">We received your donation — your support means a lot.</p>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="ghost" id="closeModal">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // --------- Configuration (replace with your server-side endpoint) ---------
+    // Frontend should call your backend to create a payment token using the Xsolla Merchant API.
+    // We'll POST to /create_payment_token with JSON body { amount, is_subscription }
+
+    const CREATE_TOKEN_ENDPOINT = '/create_payment_token'; // implement on your server
+
+    // ---------- UI logic ----------
+    const presets = document.querySelectorAll('.preset');
+    const amountInput = document.getElementById('amount');
+    const subscribeCheckbox = document.getElementById('subscription');
+    const donateBtn = document.getElementById('donateBtn');
+    const overlay = document.getElementById('overlay');
+    const successModal = document.getElementById('successModal');
+    const closeModal = document.getElementById('closeModal');
+
+    presets.forEach(p => p.addEventListener('click', () => {
+      presets.forEach(x => x.classList.remove('selected'));
+      p.classList.add('selected');
+      amountInput.value = p.dataset.amount;
+    }));
+
+    document.getElementById('suggest').addEventListener('click', () => {
+      alert('Try $3, $7, or $15 — every bit helps!');
+    });
+
+    donateBtn.addEventListener('click', async () => {
+      const raw = parseFloat(amountInput.value);
+      if (!raw || raw <= 0) { alert('Please enter a valid amount'); return; }
+
+      // amount in USD (Xsolla expects decimal amounts, but your merchant API call will accept cents if needed)
+      const amount = Math.round(raw * 100) / 100; // keep two decimals
+      const isSubscription = subscribeCheckbox.checked;
+
+      // show overlay
+      overlay.classList.add('show');
+
+      try {
+        // create token on backend
+        const resp = await fetch(CREATE_TOKEN_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount, is_subscription: isSubscription })
+        });
+
+        if (!resp.ok) throw new Error('Token creation failed');
+        const data = await resp.json();
+
+        // data should contain { access_token } returned by your server from Xsolla Merchant API
+        const token = data.access_token;
+        if (!token) throw new Error('No token received');
+
+        // open Xsolla hosted checkout
+        // this opens the Paystation with the generated access token
+        const url = `https://secure.xsolla.com/paystation3/?access_token=${encodeURIComponent(token)}`;
+
+        // Use XPayStationWidget if you prefer inline modal (example below), or redirect to url:
+        // window.location.href = url;
+
+        // We'll use the widget so user stays on the page; it will open a secure popup overlay from Xsolla.
+        XPayStationWidget.open(url);
+
+        // After checkout completes, Xsolla will redirect back or send a webhook. Since this site has no login,
+        // we detect completion via a polling endpoint or query params returned by the redirect (recommended: webhooks).
+
+      } catch (err) {
+        console.error(err);
+        alert('Failed to start payment. Please try again.');
+        overlay.classList.remove('show');
+      }
+    });
+
+    // Close modal
+    closeModal.addEventListener('click', () => {
+      successModal.classList.remove('show');
+    });
+
+    // ---- Optional: Listen for a redirect back that includes a success flag ----
+    // If you configure Xsolla to return to your site after payment with a query string
+    // like ?xsolla_status=success&payment_id=..., you can show the modal here.
+    (function checkRedirect() {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('xsolla_status') === 'success') {
+        const amt = p.get('amount') || '';
+        document.getElementById('successMsg').textContent = `We received your donation ${amt ? 'of $' + amt : ''}. Thank you!`;
+        successModal.classList.add('show');
+      }
+    })();
+  </script>
+
+  <!--
+    ------------------
+    Server examples for token creation (Merchant API)
+    ------------------
+    The frontend calls /create_payment_token (POST) on your server. The server should
+    call Xsolla Merchant API to create a token for Paystation and return { access_token }
+
+    Replace placeholders: MERCHANT_ID, PROJECT_ID, MERCHANT_API_KEY (used as HTTP Basic auth username)
+
+    NOTE: Do NOT store MERCHANT_API_KEY in frontend code. Keep secrets server-side only.
+  -->
+
+  <!-- Node.js (Express) example -->
+  <!--
+  const express = require('express');
+  const axios = require('axios');
+  const app = express();
+  app.use(express.json());
+
+  app.post('/create_payment_token', async (req, res) => {
+    const { amount, is_subscription } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+
+    try {
+      const payload = {
+        user: { id: `anon_${Date.now()}` },
+        settings: {
+          project_id: YOUR_PROJECT_ID, // numeric
+        },
+        purchase: is_subscription ? {
+          subscription: {
+            // If using Xsolla Subscription API you'll need to map to a subscription plan ID you've set in Xsolla
+            // For on-the-fly recurring billing without plan, you might need to create a subscription plan in Xsolla dashboard.
+            plan_id: 'YOUR_XSOLLA_PLAN_ID'
+          }
+        } : {
+          virtual_currency: { quantity: amount }
+        }
+      };
+
+      const response = await axios.post(
+        `https://api.xsolla.com/merchant/v2/project/${YOUR_PROJECT_ID}/token`,
+        payload,
+        { auth: { username: 'MERCHANT_API_KEY', password: '' } }
+      );
+
+      return res.json(response.data);
+    } catch (e) {
+      console.error(e.response ? e.response.data : e.message);
+      return res.status(500).json({ error: 'Token creation error' });
+    }
+  });
+
+  app.listen(3000, () => console.log('Server running on :3000'));
+  -->
+
+  <!-- PHP (cURL) example -->
+  <!--
+  <?php
+  // create_payment_token.php
+  header('Content-Type: application/json');
+  $input = json_decode(file_get_contents('php://input'), true);
+  $amount = $input['amount'] ?? 0;
+  $is_subscription = $input['is_subscription'] ?? false;
+
+  if (!$amount || $amount <= 0) { http_response_code(400); echo json_encode(['error'=>'Invalid amount']); exit; }
+
+  $payload = [
+    'user' => ['id' => 'anon_'.time()],
+    'settings' => ['project_id' => YOUR_PROJECT_ID],
+  ];
+
+  if ($is_subscription) {
+    $payload['purchase'] = ['subscription' => ['plan_id' => 'YOUR_XSOLLA_PLAN_ID']];
+  } else {
+    $payload['purchase'] = ['virtual_currency' => ['quantity' => $amount]];
+  }
+
+  $ch = curl_init();
+  curl_setopt($ch, CURLOPT_URL, "https://api.xsolla.com/merchant/v2/project/".YOUR_PROJECT_ID."/token");
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_POST, true);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+  curl_setopt($ch, CURLOPT_USERPWD, 'MERCHANT_API_KEY:');
+  curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+  $resp = curl_exec($ch);
+  $err = curl_error($ch);
+  curl_close($ch);
+  if ($err) { http_response_code(500); echo json_encode(['error'=>$err]); exit; }
+  echo $resp;
+  ?>
+  -->
+
+  <!--
+    ------------------
+    Additional integration notes
+    ------------------
+    1) Subscriptions: Prefer creating subscription "plans" in Xsolla Dashboard and then pass the plan_id when creating the token.
+    2) Webhooks: Configure Xsolla Webhooks to notify your server about completed payments and subscription events. Use these webhooks to send donation receipts or update CRM.
+    3) Payouts: Xsolla holds funds and pays out to your bank according to your payout schedule set in the Publisher Portal.
+    4) Security: Keep MERCHANT_API_KEY server-side. Use HTTPS. Validate webhook signatures.
+
+    That's it — this package includes:
+      • polished responsive frontend (preset buttons, monthly toggle, loader, success modal)
+      • frontend flow calling a backend endpoint to generate Xsolla access_token (server code samples included)
+
+    Next steps I can do for you now (choose any):
+      • Build the Node.js or PHP backend endpoint and return a ready-to-run repo.
+      • Wire up webhook handler example (Node/PHP) and show how to verify the event.
+      • Add analytics or email receipt sending after webhook confirmation.
+  -->
+
+</body>
+</html>
